@@ -55,70 +55,75 @@
     - group: root
     - clean: {{ clean_keyrings_d }}
 
+{#- One deb822 file per repository: <repo>.sources. pkgrepo.managed is not used
+    because Salt's aptpkg only reads and writes the one-line format. Keys are
+    files named by `signed_by` (downloaded from `key_url` when set), so each
+    key is trusted for its own repository only. keyid/keyserver and key_text
+    are not supported. #}
+{%- set old_trusted_keys = [] %}
 {% for repo, args in repositories.items() %}
+{%-   set types = [] %}
+{%-   for type in args.type|d(['binary']) %}
+{%-     do types.append('deb-src' if type == 'source' else 'deb') %}
+{%-   endfor %}
+{%-   set r_file = args.filename if args.filename is defined else repo ~ '.sources' %}
+{%-   set signed_by = args.signed_by|d('') %}
 
-{% set r_opts = '' %}
-{%- set r_arch = 'arch=' ~ args.arch|join(',') if args.arch is defined else '' %}
-{% if args.opts is defined %}
-  {% if args.opts is string %}
-    {% set r_opts = args.opts %}
-  {% else %}
-    {% set r_opts_list = [] %}
-    {%- for k, v in args.opts.items() %}
-      {% do r_opts_list.append(k ~ '=' ~ v) %}
-    {%- endfor %}
-    {% set r_opts =  r_opts_list|join(' ') %}
-  {% endif %}
-{% endif %}
+{%-   if args.key_url is defined and signed_by %}
+{%-     do old_trusted_keys.append('/etc/apt/trusted.gpg.d/' ~ signed_by.split('/')[-1]) %}
 
-{% if r_arch != '' or r_opts != '' %}
-  {% set r_options = '[' ~ r_arch ~ ' ' ~ r_opts ~ ' ]' %}
-{% else %}
-  {% set r_options = '' %}
-{% endif %}
-
-{%- set r_url = args.url or default_url %}
-{%- set r_distro = args.distro or 'stable' %}
-{%- set r_comps = args.comps|default(['main'])|join(' ') %}
-{%- set r_keyserver = args.keyserver if args.keyserver is defined else apt_map.default_keyserver %}
-
-  {%- for type in args.type|d(['binary']) %}
-    {%- set r_type = 'deb-src' if type == 'source' else 'deb' %}
-    {%- set r_file = args.filename if args.filename is defined else repo ~ '-' ~ type ~ '.list' %}
-
-{{ r_type }} {{ repo }}:
-  pkgrepo.managed:
-    - name: {{ r_type }} {{ r_options }} {{ r_url }} {{ r_distro }} {{ r_comps }}
-    - file: {{ sources_list_dir }}/{{ r_file }}
-    {# You can use either keyid+keyserver or key_url. If both are provided
-       the latter will be used. #}
-    {% if args.key_url is defined %}
-    - key_url: {{ args.key_url }}
-      {% if 'signed-by=' in r_opts|lower and args.aptkey is not defined %}
-    - aptkey: false
-      {% endif %}
-    {% elif args.key_text is defined %}
-    - key_text: {{ args.key_text }}
-    {% elif args.keyid is defined %}
-    - keyid: {{ args.keyid }}
-    - keyserver: {{ r_keyserver }}
-    {% endif %}
-    - clean_file: true
-    - refresh: False
-    - refresh_db: False
-    {% if args.aptkey is defined %}
-    - aptkey: {{ args.aptkey }}
-    {% endif %}
+apt/repositories/key/{{ repo }}:
+  file.managed:
+    - name: {{ signed_by }}
+    - source: {{ args.key_url }}
+    {#- key_url has no published hash: same trust as the former pkgrepo download #}
+    - skip_verify: True
+    - user: root
+    - group: root
+    - mode: '0644'
+    - makedirs: True
     - onchanges_in:
       - module: apt.refresh_db
+{%-   endif %}
+
+apt/repositories/source/{{ repo }}:
   file.managed:
     - name: {{ sources_list_dir }}/{{ r_file }}
-    - replace: false
+    - user: root
+    - group: root
+    - mode: '0644'
+    - contents: |
+        Types: {{ types|join(' ') }}
+        URIs: {{ args.url or default_url }}
+        Suites: {{ args.distro or 'stable' }}
+        Components: {{ args.comps|default(['main'])|join(' ') }}
+        {%- if args.arch is defined %}
+        Architectures: {{ args.arch|join(' ') }}
+        {%- endif %}
+        {%- if signed_by %}
+        Signed-By: {{ signed_by }}
+        {%- endif %}
+    {%- if args.key_url is defined and signed_by %}
+    - require:
+      - file: apt/repositories/key/{{ repo }}
+    {%- endif %}
+    # require_in the directory clean state, so the file is kept, not removed
+    # and added again.
     - require_in:
       - file: {{ sources_list_dir }}
-      # require_in the directory clean state
-      # This way, we don't remove all the files, just to add them again.
-  {%- endfor %}
+    - onchanges_in:
+      - module: apt.refresh_db
+{% endfor %}
+
+{#- Keys formerly downloaded into trusted.gpg.d were trusted for every
+    repository: remove them, never a file a package ships. #}
+{% for key in old_trusted_keys|unique %}
+apt/repositories/old-key/{{ key }}:
+  file.absent:
+    - name: {{ key }}
+    - unless: dpkg-query -S {{ key }}
+    - onchanges_in:
+      - module: apt.refresh_db
 {% endfor %}
 
 {% if repositories %}
