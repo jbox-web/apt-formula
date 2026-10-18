@@ -70,12 +70,6 @@ suites:
           base:
             '*':
               - repositories
-            'G@os:Debian and G@osmajorrelease:13':
-              - match: compound
-              - repo-no-aptkey
-            'G@os:Ubuntu and G@osmajorrelease:26':
-              - match: compound
-              - repo-no-aptkey
       dependencies:
         - name: states
           path: ./test/salt

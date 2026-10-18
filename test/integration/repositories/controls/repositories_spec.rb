@@ -3,13 +3,9 @@
 control 'Apt repositories' do
   title 'should be configured'
 
-  keyring_package = if os[:name] == 'ubuntu'
-                      'ubuntu-keyring'
-                    else
-                      'debian-archive-keyring'
-                    end
+  codename = { '11' => 'bullseye', '13' => 'trixie' }[os[:release].split('.').first]
 
-  describe package(keyring_package) do
+  describe package('debian-archive-keyring') do
     it { should be_installed }
   end
 
@@ -32,51 +28,38 @@ control 'Apt repositories' do
     end
   end
 
-  describe file('/etc/apt/sources.list.d/heroku-binary.list') do
-    it { should exist }
-    it { should be_owned_by 'root' }
-    it { should be_grouped_into 'root' }
-    its('mode') { should cmp '0644' }
-    its(:content) do
-      should match(
-        %r{
-          deb\ \[arch=amd64
-          (?:\ signed-by=/etc/apt/keyrings/heroku-archive-keyring\.gpg)?
-          \]\ https://cli-assets\.heroku\.com/apt\ \./
-        }x
-      )
-    end
-  end
-
-  describe file('/etc/apt/sources.list.d/my_raspbian_repo.list') do
-    it { should exist }
-    it { should be_owned_by 'root' }
-    it { should be_grouped_into 'root' }
-    its('mode') { should cmp '0644' }
-    its(:content) do
-      should match(
-        %r{
-          deb-src
-          \ (?:\[signed-by=/etc/apt/keyrings/raspbian-archive-keyring\.gpg\]\ )?
-          http://archive\.raspbian\.org/raspbian\ stable\ main
-        }x
-      )
-    end
-  end
-
-  describe file('/etc/apt/sources.list.d/raspbian-binary.list') do
+  # Shipped by the Salt image, not managed: removed by `clean_sources_list_d`
+  describe file('/etc/apt/sources.list.d/salt.sources') do
     it { should_not exist }
   end
 
-  describe file('/etc/apt/sources.list.d/saltstack.list') do
-    it { should exist }
+  describe file('/etc/apt/sources.list.d/debian.sources') do
     it { should be_owned_by 'root' }
     it { should be_grouped_into 'root' }
     its('mode') { should cmp '0644' }
     its(:content) do
-      should match(
-        %r{deb \[\s?signed-by=/etc/apt/keyrings/salt-archive-keyring.pgp\s?\] https://packages.broadcom.com/artifactory/saltproject-deb stable main}
-      )
+      should eq <<~SOURCES
+        Types: deb
+        URIs: http://deb.debian.org/debian
+        Suites: #{codename}
+        Components: main
+        Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+      SOURCES
+    end
+  end
+
+  describe file('/etc/apt/sources.list.d/saltstack.sources') do
+    it { should be_owned_by 'root' }
+    it { should be_grouped_into 'root' }
+    its('mode') { should cmp '0644' }
+    its(:content) do
+      should eq <<~SOURCES
+        Types: deb
+        URIs: https://packages.broadcom.com/artifactory/saltproject-deb
+        Suites: stable
+        Components: main
+        Signed-By: /etc/apt/keyrings/salt-archive-keyring.pgp
+      SOURCES
     end
   end
 

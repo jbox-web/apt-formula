@@ -9,27 +9,18 @@ apt:
     unmanaged:
       unmanaged: true  # do not remove this file when clean_sources_list_d=true
       filename: unmanaged.list  # optional
-    heroku:
-      distro: ./
-      url: https://cli-assets.heroku.com/apt
-      arch: [amd64]
-      comps: []
-      key_url: https://cli-assets.heroku.com/apt/release.key
-    raspbian:
-      # If you want to use a particular filename under /etc/apt/sources.list.d
-      # set it here, with extension included
-      filename: my_raspbian_repo.list
-      distro: stable
-      url: http://archive.raspbian.org/raspbian
-      type: [source]
-      key_url: "https://raw.githubusercontent.com/saltstack-formulas/apt-formula/\
-                 e186bc5c0cd91b0a2bc0fe20ced5be5c79470795/test/salt/states/files/\
-                 raspbian.public.key"
+    # Key shipped by a package, as for the Debian archive
+    debian:
+      distro: {{ grains['oscodename'] }}
+      url: http://deb.debian.org/debian
+      comps: [main]
+      type: [binary]
+      signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
+    # Key downloaded from `key_url` into its own keyring
     saltstack:
-      filename: saltstack.list
       distro: stable
       url: https://packages.broadcom.com/artifactory/saltproject-deb
       comps: [main]
       type: [binary]
       key_url: https://packages.broadcom.com/artifactory/api/security/keypair/SaltProjectKey/public  # yamllint disable-line rule:line-length
-      opts: "signed-by=/etc/apt/keyrings/salt-archive-keyring.pgp"
+      signed_by: /etc/apt/keyrings/salt-archive-keyring.pgp
