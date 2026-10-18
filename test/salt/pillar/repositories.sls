@@ -11,7 +11,7 @@ apt:
       filename: unmanaged.list  # optional
     # Key shipped by a package, as for the Debian archive
     debian:
-      distro: {{ grains['oscodename'] }}
+      distro: "{{ grains['oscodename'] }}"
       url: http://deb.debian.org/debian
       comps: [main]
       type: [binary]
