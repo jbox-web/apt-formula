@@ -82,6 +82,9 @@ apt/repositories/key/{{ repo }}:
     - group: root
     - mode: '0644'
     - makedirs: True
+    # require_in the keyrings directory clean state, so the key is kept.
+    - require_in:
+      - file: {{ keyrings_dir }}
     - onchanges_in:
       - module: apt.refresh_db
 {%-   endif %}
