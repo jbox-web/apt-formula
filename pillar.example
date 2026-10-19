@@ -87,55 +87,42 @@ apt:
         frontend: browser
         browser: mozilla
 
+  # One deb822 file per repository: <sources_list_dir>/<name>.sources.
+  # `signed_by` is the keyring trusted for that repository only; with
+  # `key_url` the key is downloaded there, without it the keyring must
+  # already exist (e.g. shipped by a package). keyid/keyserver, key_text
+  # and opts are not supported.
   repositories:
+    # Keyring shipped by the debian-archive-keyring package
     security-stable:
-      distro: stable/updates
-      url: http://security.debian.org
+      distro: stable-security
+      url: http://deb.debian.org/debian-security
       comps: [main, contrib, non-free]
       arch: [amd64, i386]
       type: [binary, source]
-      key_url: https://ftp-master.debian.org/keys/archive-key-10-security.asc
+      signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
     updates:
       distro: stable-updates
       url: http://deb.debian.org/debian/
       comps: [main, contrib, non-free]
-      key_url: https://ftp-master.debian.org/keys/archive-key-10.asc
+      signed_by: /usr/share/keyrings/debian-archive-keyring.gpg
     raspbian:
       # If you want to use a particular filename under /etc/apt/sources.list.d
       # set it here, with extension included
-      filename: my_raspbian_repo.list
+      filename: my_raspbian_repo.sources
       distro: stable
       url: http://archive.raspbian.org/raspbian
       type: [source]
       key_url: https://archive.raspbian.org/raspbian.public.key
-    debian-jessie:
-      distro: jessie
-      url: http://deb.debian.org/debian
-      type: [source]
-      comps: [main, contrib, non-free]
-    dropbox:
-      distro: jessie
-      url: http://linux.dropbox.com/debian
-      arch: [i386, amd64]
-      keyid: 1C61A2656FB57B7E4DE0F4C1FC918B335044912E
-      keyserver: hkp://pgp.mit.edu:80
-    intranet:
-      distro: stretch
-      url: http://intranet.example.org
-      opts: "trusted=yes"
-    extranet:
-      distro: stretch
-      url: https://extranet.example.org
-      opts:
-        trusted: 'yes'
-        another: whatever
+      # ASCII-armored key: apt reads it when the file ends in .asc
+      signed_by: /etc/apt/keyrings/raspbian.asc
     saltstack:
       distro: stable
       url: https://packages.broadcom.com/artifactory/saltproject-deb
       comps: [main]
       type: [binary]
       key_url: https://packages.broadcom.com/artifactory/api/security/keypair/SaltProjectKey/public  # yamllint disable-line rule:line-length
-      opts: "signed-by=/etc/apt/keyrings/salt-archive-keyring.pgp"
+      signed_by: /etc/apt/keyrings/salt-archive-keyring.pgp
     rabbitmq:
       unmanaged: true  # useful when rabbitmq.list is managed by another formula
       filename: rabbitmq.list
